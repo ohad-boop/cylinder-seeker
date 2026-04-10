@@ -31,11 +31,16 @@ pip install requests pandas tqdm
 
 ### 2. API Key
 
-The API key is already set in the script. To update it:
-Open `CylinderSeeker.py` and find line ~35:
+Set your Perplexity API key as an environment variable (never hardcode it):
 
-```python
-PERPLEXITY_API_KEY = "your-key-here"
+```bash
+# Option A — shell export
+export PERPLEXITY_API_KEY="pplx-your-key-here"
+
+# Option B — .env file (copy from template)
+cp .env.example .env
+# then edit .env and fill in your key
+pip install python-dotenv   # needed for .env file loading
 ```
 
 ### 3. Run it
