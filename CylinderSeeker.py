@@ -58,6 +58,11 @@ LOG_FILE           = "cylinder_seeker.log"
 GITHUB_REPO        = "ohad-boop/cylinder-seeker"   # auto-push target
 GITHUB_AUTO_PUSH   = True                           # set False to disable
 
+# Google Drive folder IDs (pre-created structure)
+GDRIVE_ENABLED           = True
+GDRIVE_CYLINDER_SEEKER_FOLDER = "1nFZqbG2AYItFiRmqI0Ntk94MXL2tbggK"  # OpenClaw/Agents/CylinderSeeker
+GDRIVE_ACCOUNT           = "ohad@geothermico.com"
+
 # ─────────────────────────────────────────────────────────────────────────────
 # ██  TOP 50 US METROPOLITAN STATISTICAL AREAS
 # ─────────────────────────────────────────────────────────────────────────────
@@ -492,6 +497,47 @@ def research_city(city: str, state: str) -> tuple:
 # ██  GITHUB AUTO-COMMIT & PUSH
 # ─────────────────────────────────────────────────────────────────────────────
 
+def gdrive_upload(output_file: str, evidence_file: str, md_file: str, run_label: str):
+    """Create a timestamped run folder in Google Drive and upload all result files."""
+    if not GDRIVE_ENABLED:
+        return
+
+    try:
+        # Create a run folder under CylinderSeeker
+        result = subprocess.run(
+            ["gog", "drive", "mkdir", run_label,
+             "--parent", GDRIVE_CYLINDER_SEEKER_FOLDER,
+             "--account", GDRIVE_ACCOUNT, "--json"],
+            capture_output=True, text=True, check=True
+        )
+        folder_data = json.loads(result.stdout)
+        run_folder_id = folder_data["folder"]["id"]
+        folder_url    = folder_data["folder"]["webViewLink"]
+        log.info(f"  Google Drive: run folder created → {folder_url}")
+
+        # Upload files
+        files_to_upload = [output_file, evidence_file, md_file, "CylinderSeeker.py", "README.md"]
+        for f in files_to_upload:
+            if not Path(f).exists():
+                continue
+            up = subprocess.run(
+                ["gog", "drive", "upload", f,
+                 "--parent", run_folder_id,
+                 "--account", GDRIVE_ACCOUNT, "--json"],
+                capture_output=True, text=True, check=True
+            )
+            up_data = json.loads(up.stdout)
+            log.info(f"  Google Drive: uploaded {f} → {up_data['file']['webViewLink']}")
+
+        print(f"\n  📂 Google Drive: results uploaded → {folder_url}")
+
+    except subprocess.CalledProcessError as e:
+        log.warning(f"  ⚠ Google Drive upload failed: {e.stderr}")
+        print(f"\n  ⚠ Google Drive upload failed (results still saved locally + GitHub)")
+    except Exception as e:
+        log.warning(f"  ⚠ Google Drive error: {e}")
+
+
 def git_push(output_file: str, evidence_file: str, md_file: str):
     """Commit and push results to GitHub after each run."""
     if not GITHUB_AUTO_PUSH:
@@ -720,6 +766,10 @@ def run_agent(cities_limit: int = None, resume: bool = False, output_file: str =
 
     # Auto-push to GitHub
     git_push(output_file, evidence_file, md_file)
+
+    # Auto-upload to Google Drive
+    run_label = f"Run_{datetime.utcnow().strftime('%Y-%m-%d')}_{len(df)}cities"
+    gdrive_upload(output_file, evidence_file, md_file, run_label)
 
     # Clean up checkpoint on success
     if not failed_cities and Path(CHECKPOINT_FILE).exists():
