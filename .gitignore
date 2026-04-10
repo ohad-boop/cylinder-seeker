@@ -1,0 +1,7 @@
+.env
+*.log
+cylinder_seeker_checkpoint.json
+test_run.csv
+__pycache__/
+*.pyc
+.DS_Store
